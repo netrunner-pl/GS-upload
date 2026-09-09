@@ -1,18 +1,716 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GS form updater</title>
-    <meta name="description" content="Aplikacja do przetwarzania plików Excel, mapowania kodów produktów na markę i model SKU oraz zapisu w Google Sheets." />
-    <meta property="og:title" content="GS form updater" />
-    <meta property="og:description" content="Aplikacja do przetwarzania plików Excel, mapowania kodów produktów na markę i model SKU oraz zapisu w Google Sheets." />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="./src/main.tsx"></script>
-  </body>
-</html>
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GS Form Updater</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS (xlsx) CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .fade-in { animation: fadeIn 0.2s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body class="bg-stone-100 text-stone-900 min-h-screen p-3 sm:p-6">
+  <div class="max-w-6xl mx-auto space-y-5">
+    
+    <!-- NAGŁÓWEK -->
+    <header class="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div class="flex items-center space-x-3.5">
+        <div class="w-11 h-11 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xl shadow-sm shrink-0">
+          GS
+        </div>
+        <div>
+          <div class="flex flex-wrap items-center gap-2">
+            <h1 class="text-xl font-bold text-stone-900">GS Form Updater</h1>
+            <span id="envBadge" class="text-[11px] font-semibold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-md border border-stone-200">
+              Tryb: GitHub Pages / Standalone
+            </span>
+          </div>
+          <p class="text-xs text-stone-500 mt-0.5">
+            Excel &rarr; Mapowanie (A: Kod, D: Opis, J: GS) &rarr; Zapis do "Form Responses 1"
+          </p>
+        </div>
+      </div>
+      
+      <!-- PRZYCISKI GŁÓWNE -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="btnOpenDictionary" type="button" class="text-xs px-3 py-1.5 rounded-xl border border-stone-300 hover:bg-stone-50 text-stone-700 font-semibold transition-colors flex items-center space-x-1.5">
+          <span>📖 Słownik mapowań</span>
+        </button>
+        <button id="btnSampleDownload" type="button" class="text-xs px-3 py-1.5 rounded-xl border border-stone-300 hover:bg-stone-50 text-stone-700 font-semibold transition-colors flex items-center space-x-1.5">
+          <span>📥 Wzorzec Excel</span>
+        </button>
+        <button id="btnWebhookConfig" type="button" class="text-xs px-3 py-1.5 rounded-xl border border-stone-300 hover:bg-stone-50 text-stone-700 font-semibold transition-colors flex items-center space-x-1.5">
+          <span>⚙️ Webhook URL</span>
+        </button>
+      </div>
+    </header>
 
+    <!-- OSTRZEŻENIE O BRAKU WEBHOOKA -->
+    <div id="webhookAlert" class="hidden p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between">
+      <span>⚠️ Nie skonfigurowano adresu URL Webhooka Google Apps Script. Kliknij przycisk obok, aby podać link <code>/exec</code>.</span>
+      <button onclick="document.getElementById('webhookModal').classList.remove('hidden')" class="font-bold underline ml-2">Ustaw teraz</button>
+    </div>
+
+    <!-- KROK 1: WGRYWANIE PLIKU -->
+    <section id="uploadSection" class="space-y-4">
+      <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-5">
+        <div>
+          <h2 class="text-base font-bold text-stone-900">1. Wgraj plik sprzedażowy Excel</h2>
+          <p class="text-xs text-stone-500 mt-0.5">Obsługiwane formaty: .xlsx, .xls, .csv. Przetwarzanie odbywa się w 100% lokalnie.</p>
+        </div>
+
+        <!-- Dropzone -->
+        <div id="dropZone" class="border-2 border-dashed border-stone-300 hover:border-emerald-500 bg-stone-50 hover:bg-emerald-50/30 rounded-2xl p-8 sm:p-10 text-center cursor-pointer transition-all">
+          <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" class="hidden" />
+          <div class="w-14 h-14 mx-auto rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mb-3">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+          </div>
+          <p class="text-base font-semibold text-stone-800">Przeciągnij i upuść plik Excel tutaj</p>
+          <p class="text-xs text-stone-500 mt-1">lub kliknij, aby wybrać plik z dysku</p>
+        </div>
+
+        <!-- Konfiguracja kolumn po załadowaniu pliku -->
+        <div id="columnConfigCard" class="hidden bg-stone-50 border border-stone-200 rounded-xl p-4 space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-stone-800">Weryfikacja kolumn wejściowych:</span>
+            <span id="fileNameLabel" class="text-xs font-mono font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded"></span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-stone-700 mb-1">Kolumna Kod:</label>
+              <select id="selectColCode" class="w-full text-xs rounded-lg border border-stone-300 bg-white p-2 text-stone-900"></select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-stone-700 mb-1">Kolumna Opis (Kolumna D):</label>
+              <select id="selectColDesc" class="w-full text-xs rounded-lg border border-stone-300 bg-white p-2 text-stone-900"></select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-stone-700 mb-1">Kolumna Premia GS (Kolumna J):</label>
+              <select id="selectColGs" class="w-full text-xs rounded-lg border border-stone-300 bg-white p-2 text-stone-900"></select>
+            </div>
+          </div>
+
+          <div class="pt-2 flex justify-end">
+            <button id="btnProceedProcessing" type="button" class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-colors">
+              Przetwórz i wygeneruj tabelę &rarr;
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MODAL: UZUPEŁNIANIE BRAKUJĄCYCH KODÓW -->
+    <div id="unmappedModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
+      <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-stone-200 fade-in">
+        <div class="px-6 py-4 border-b border-stone-200 bg-amber-50 rounded-t-2xl">
+          <h3 class="text-base font-bold text-stone-900">Uzupełnij brakujące produkty</h3>
+          <p class="text-xs text-stone-600 mt-0.5">Wykryto kody spoza bazy mapowań. Poniżej widać oryginalny opis z <strong>Kolumny D</strong>.</p>
+        </div>
+        <div id="unmappedList" class="p-6 overflow-y-auto space-y-4 flex-1"></div>
+        <div class="px-6 py-4 border-t border-stone-200 bg-stone-50 rounded-b-2xl flex justify-between items-center">
+          <button id="btnCancelUnmapped" type="button" class="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-100 text-xs font-semibold">Anuluj</button>
+          <button id="btnApplyUnmapped" type="button" class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">Zatwierdź i przejdź do tabeli</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: SŁOWNIK MAPOWAŃ -->
+    <div id="dictionaryModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
+      <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-stone-200 fade-in">
+        <div class="px-6 py-4 border-b border-stone-200 bg-stone-50 rounded-t-2xl flex items-center justify-between">
+          <h3 class="text-base font-bold text-stone-900">Słownik mapowań produktów</h3>
+          <button id="btnCloseDictionary" class="text-stone-400 hover:text-stone-700 text-xl font-bold px-2">&times;</button>
+        </div>
+        <div class="p-4 border-b border-stone-200 bg-stone-50/50 space-y-2">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <input type="text" id="dictInputCode" placeholder="Kod (np. TCL-65C845)" class="text-xs p-2 rounded-lg border border-stone-300 uppercase font-mono" />
+            <input type="text" id="dictInputBrand" placeholder="Marka (np. TCL)" class="text-xs p-2 rounded-lg border border-stone-300" />
+            <input type="text" id="dictInputModel" placeholder="Model (np. 65C845 MiniLED)" class="text-xs p-2 rounded-lg border border-stone-300" />
+          </div>
+          <button id="btnAddDictEntry" type="button" class="text-xs px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">+ Dodaj do bazy</button>
+        </div>
+        <div id="dictionaryList" class="p-4 overflow-y-auto space-y-2 flex-1 text-xs"></div>
+        <div class="px-6 py-3 border-t border-stone-200 bg-stone-50 rounded-b-2xl flex justify-between items-center text-xs">
+          <button id="btnResetDictDefault" type="button" class="text-rose-600 hover:underline">Przywróć domyślne</button>
+          <span id="dictCountBadge" class="text-stone-500 font-mono"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: USTAWIENIA WEBHOOKA -->
+    <div id="webhookModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
+      <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-stone-200 space-y-4 fade-in">
+        <h3 class="text-base font-bold text-stone-900">Konfiguracja Webhooka Apps Script</h3>
+        <p class="text-xs text-stone-600">
+          Wklej poniżej adres URL uzyskany w Apps Script po kliknięciu <em>Wdróż &rarr; Nowe wdrożenie &rarr; Aplikacja internetowa</em> (adres kończy się na <code>/exec</code>):
+        </p>
+        <div>
+          <label class="block text-xs font-semibold text-stone-700 mb-1">Adres URL (/exec):</label>
+          <input type="url" id="webhookUrlInput" placeholder="https://script.google.com/macros/s/.../exec" class="w-full text-xs font-mono p-2.5 rounded-lg border border-stone-300" />
+        </div>
+        <div class="flex justify-end space-x-2 pt-2">
+          <button id="btnCancelWebhook" type="button" class="px-4 py-2 rounded-xl border border-stone-300 text-xs font-semibold text-stone-700 hover:bg-stone-50">Anuluj</button>
+          <button id="btnSaveWebhook" type="button" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">Zapisz URL</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- KROK 2: WIDOK WYNIKOWY -->
+    <section id="resultsSection" class="hidden space-y-5">
+      <!-- Baner sukcesu -->
+      <div id="successBanner" class="hidden p-5 rounded-2xl bg-emerald-50 border-2 border-emerald-500/40 text-emerald-950 shadow-sm fade-in">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span class="text-base font-bold">Wiersze zostały pomyślnie wysłane do Google Sheets!</span>
+            <p id="successDetails" class="text-xs text-emerald-900 mt-1"></p>
+          </div>
+          <button id="btnUploadNext" type="button" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shrink-0">Wgraj kolejny plik</button>
+        </div>
+      </div>
+
+      <!-- KPI -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm">
+          <span class="text-xs text-stone-500 font-medium">Liczba wierszy</span>
+          <p id="statCount" class="text-2xl font-bold text-stone-900 mt-1">0</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm">
+          <span class="text-xs text-stone-500 font-medium">Suma premii GS</span>
+          <p id="statTotalGs" class="text-2xl font-bold text-emerald-700 mt-1">0</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm">
+          <span class="text-xs text-stone-500 font-medium">Średnia premia GS</span>
+          <p id="statAvgGs" class="text-2xl font-bold text-stone-800 mt-1">0</p>
+        </div>
+      </div>
+
+      <!-- Tabela -->
+      <div class="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base font-bold text-stone-900">Dane przygotowane do zapisu</h2>
+            <p class="text-xs text-stone-500">Układ: timestamp | marka | model | gs</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <input type="text" id="tableFilterInput" placeholder="Szukaj w tabeli..." class="text-xs px-3 py-1.5 rounded-xl border border-stone-300 w-40" />
+            <button id="btnCopyTsv" type="button" class="px-3 py-1.5 rounded-xl border border-stone-300 hover:bg-stone-50 text-xs font-semibold text-stone-700">Kopiuj (Ctrl+V)</button>
+            <button id="btnDownloadXlsx" type="button" class="px-3 py-1.5 rounded-xl border border-stone-300 hover:bg-stone-50 text-xs font-semibold text-stone-700">Pobierz .xlsx</button>
+            <button id="btnResetTable" type="button" class="px-3 py-1.5 rounded-xl border border-stone-300 hover:bg-stone-50 text-xs font-semibold text-stone-700">Zmień plik</button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto border border-stone-200 rounded-xl max-h-[450px]">
+          <table class="w-full text-left text-xs">
+            <thead class="sticky top-0 bg-stone-100 z-10 border-b border-stone-200">
+              <tr class="text-stone-700 font-semibold uppercase tracking-wider">
+                <th class="py-2.5 px-3 w-8">#</th>
+                <th class="py-2.5 px-3">timestamp</th>
+                <th class="py-2.5 px-3">marka</th>
+                <th class="py-2.5 px-3">model</th>
+                <th class="py-2.5 px-3 text-right">gs</th>
+                <th class="py-2.5 px-3">oryginalny kod / opis</th>
+                <th class="py-2.5 px-3 text-center w-12">usuń</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody" class="divide-y divide-stone-200 bg-white"></tbody>
+          </table>
+        </div>
+
+        <div class="pt-3 border-t border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <span class="text-xs text-stone-500">Zapis nastąpi w zakładce <strong>"Form Responses 1"</strong>.</span>
+          <button id="btnSaveToSheets" type="button" class="px-7 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-stone-300 text-white font-semibold text-sm transition-all shadow-sm">
+            Zaakceptuj i zapisz w Google Sheets
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    (function() {
+      // Domyślna baza
+      var DEFAULT_MAPPINGS = {
+        'SAM-S24-128': { brand: 'Samsung', model: 'Galaxy S24 128GB' },
+        'SAM-S24U-256': { brand: 'Samsung', model: 'Galaxy S24 Ultra 256GB' },
+        'APL-IP16P-256': { brand: 'Apple', model: 'iPhone 16 Pro 256GB' },
+        'XIA-RN13-8': { brand: 'Xiaomi', model: 'Redmi Note 13 8GB' },
+        'TCL-65C845': { brand: 'TCL', model: '65C845 MiniLED' },
+        'SNY-WH1000-B': { brand: 'Sony', model: 'WH-1000XM5 Black' }
+      };
+
+      var knownBrands = ['Samsung', 'Apple', 'Xiaomi', 'TCL', 'Sony', 'Motorola', 'Asus', 'Philips'];
+
+      var rawParsedRows = [];
+      var currentRecords = [];
+      var pendingUnmapped = [];
+      var isSaved = false;
+
+      // Sprawdzenie obecności Webhooka
+      function checkWebhookUrl() {
+        var url = localStorage.getItem('GS_WEBHOOK_URL');
+        var alertBox = document.getElementById('webhookAlert');
+        if (!url && typeof google === 'undefined') {
+          alertBox.classList.remove('hidden');
+        } else {
+          alertBox.classList.add('hidden');
+        }
+      }
+      checkWebhookUrl();
+
+      function getMappings() {
+        try {
+          var saved = localStorage.getItem('GS_PRODUCT_MAPPINGS');
+          if (saved) return Object.assign({}, DEFAULT_MAPPINGS, JSON.parse(saved));
+        } catch(e) {}
+        return DEFAULT_MAPPINGS;
+      }
+
+      function saveMappings(newMap) {
+        try { localStorage.setItem('GS_PRODUCT_MAPPINGS', JSON.stringify(newMap)); } catch(e) {}
+      }
+
+      function formatTimestamp() {
+        var d = new Date();
+        var pad = function(n) { return n < 10 ? '0' + n : n; };
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' +
+               pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+      }
+
+      function parseGsInteger(val) {
+        if (!val) return 0;
+        if (typeof val === 'number') return Math.abs(Math.round(val));
+        var str = String(val).replace(/zł|pln|eur|usd|\$|€/gi, '').trim().replace(/\s+/g, '');
+        if (str.includes('.') && str.includes(',')) str = str.replace(/\./g, '').replace(',', '.');
+        else if (str.includes(',')) str = str.replace(',', '.');
+        var match = str.match(/[-+]?\d+(\.\d+)?/);
+        return match ? Math.abs(Math.round(parseFloat(match[0]))) : 0;
+      }
+
+      function getColLetter(index) {
+        return String.fromCharCode(65 + (index % 26));
+      }
+
+      // Drag and drop & input
+      var dropZone = document.getElementById('dropZone');
+      var fileInput = document.getElementById('fileInput');
+
+      dropZone.addEventListener('click', function() { fileInput.click(); });
+      dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('border-emerald-500', 'bg-emerald-50/40'); });
+      dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('border-emerald-500', 'bg-emerald-50/40'); });
+      dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropZone.classList.remove('border-emerald-500', 'bg-emerald-50/40');
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+      });
+      fileInput.addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) loadFile(e.target.files[0]);
+      });
+
+      function loadFile(file) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            var data = new Uint8Array(e.target.result);
+            var wb = XLSX.read(data, { type: 'array' });
+            var ws = wb.Sheets[wb.SheetNames[0]];
+            rawParsedRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+            if (!rawParsedRows || rawParsedRows.length === 0) {
+              alert('Plik jest pusty!');
+              return;
+            }
+            document.getElementById('fileNameLabel').textContent = file.name;
+            setupColumnSelectors();
+          } catch(err) {
+            alert('Błąd odczytu pliku Excel: ' + err.message);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      }
+
+      function setupColumnSelectors() {
+        var headerRow = rawParsedRows[0] || [];
+        var maxCols = Math.max(headerRow.length, 12);
+        var selCode = document.getElementById('selectColCode');
+        var selDesc = document.getElementById('selectColDesc');
+        var selGs = document.getElementById('selectColGs');
+
+        selCode.innerHTML = ''; selDesc.innerHTML = ''; selGs.innerHTML = '';
+
+        for (var i = 0; i < maxCols; i++) {
+          var letter = getColLetter(i);
+          var headerName = headerRow[i] ? String(headerRow[i]).trim() : '';
+          var label = 'Kolumna ' + letter + (headerName ? ' ("' + headerName + '")' : '');
+          selCode.innerHTML += '<option value="' + i + '">' + label + '</option>';
+          selDesc.innerHTML += '<option value="' + i + '">' + label + '</option>';
+          selGs.innerHTML += '<option value="' + i + '">' + label + '</option>';
+        }
+
+        selCode.value = "0"; // Kolumna A
+        selDesc.value = "3"; // Kolumna D
+        selGs.value = "9";   // Kolumna J
+
+        // Autodetekcja po nazwach nagłówków
+        for (var d = 0; d < headerRow.length; d++) {
+          var h = String(headerRow[d] || '').toLowerCase();
+          if (h.includes('opis') || h.includes('nazwa')) selDesc.value = String(d);
+          if (h === 'gs' || h.includes('premia')) selGs.value = String(d);
+        }
+
+        document.getElementById('columnConfigCard').classList.remove('hidden');
+      }
+
+      document.getElementById('btnProceedProcessing').addEventListener('click', function() {
+        var codeCol = parseInt(document.getElementById('selectColCode').value, 10);
+        var descCol = parseInt(document.getElementById('selectColDesc').value, 10);
+        var gsCol = parseInt(document.getElementById('selectColGs').value, 10);
+        processRows(codeCol, descCol, gsCol);
+      });
+
+      function processRows(codeCol, descCol, gsCol) {
+        var mappings = getMappings();
+        var records = [];
+        var unmappedMap = {};
+        var now = formatTimestamp();
+
+        for (var r = 1; r < rawParsedRows.length; r++) {
+          var row = rawParsedRows[r];
+          if (!row || row.length === 0) continue;
+
+          var rawCode = row[codeCol] ? String(row[codeCol]).trim() : '';
+          var rawDesc = row[descCol] ? String(row[descCol]).trim() : '';
+          var rawGs = row[gsCol];
+          if (!rawCode && !rawGs && !rawDesc) continue;
+
+          var parsedGs = parseGsInteger(rawGs);
+          var normCode = rawCode.toUpperCase();
+          var mapped = mappings[normCode];
+
+          if (mapped) {
+            records.push({ timestamp: now, brand: mapped.brand, model: mapped.model, gs: parsedGs, code: rawCode, description: rawDesc });
+          } else {
+            var key = normCode || '__ROW_' + (r + 1) + '__';
+            if (!unmappedMap[key]) {
+              unmappedMap[key] = { key: key, code: rawCode, description: rawDesc, sampleGs: parsedGs, rows: [r + 1], brand: '', model: '' };
+            } else {
+              unmappedMap[key].rows.push(r + 1);
+            }
+            records.push({ timestamp: now, brand: '', model: '', gs: parsedGs, code: rawCode, description: rawDesc, unmappedKey: key });
+          }
+        }
+
+        currentRecords = records;
+        pendingUnmapped = Object.values(unmappedMap);
+
+        if (pendingUnmapped.length > 0) {
+          showUnmappedModal();
+        } else {
+          renderTable();
+        }
+      }
+
+      function showUnmappedModal() {
+        var modal = document.getElementById('unmappedModal');
+        var list = document.getElementById('unmappedList');
+        list.innerHTML = '';
+
+        pendingUnmapped.forEach(function(item, idx) {
+          var card = document.createElement('div');
+          card.className = 'border border-stone-200 rounded-xl p-4 bg-stone-50 space-y-3';
+          var descText = item.description || '(Brak tekstu w kolumnie D)';
+
+          card.innerHTML = 
+            '<div class="flex items-center justify-between border-b border-stone-200 pb-2 text-xs">' +
+              '<span class="font-mono font-bold text-stone-900">#' + (idx + 1) + ' Kod: ' + (item.code || '<span class="text-rose-600">Brak kodu</span>') + '</span>' +
+              '<span class="text-stone-500 font-mono text-[11px]">Wiersze: ' + item.rows.join(', ') + ' | GS: ' + item.sampleGs + '</span>' +
+            '</div>' +
+            '<div class="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-xs">' +
+              '<span class="font-bold text-amber-900 block mb-0.5">Zawartość Kolumny D:</span>' +
+              '<p class="select-all text-stone-800">' + escapeHtml(descText) + '</p>' +
+            '</div>' +
+            '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">' +
+              '<div>' +
+                '<label class="block text-[11px] font-semibold text-stone-600 mb-1">Marka:</label>' +
+                '<input type="text" class="inputBrand w-full text-xs rounded border border-stone-300 p-1.5" placeholder="np. TCL, Samsung" />' +
+              '</div>' +
+              '<div>' +
+                '<label class="block text-[11px] font-semibold text-stone-600 mb-1">Model:</label>' +
+                '<input type="text" class="inputModel w-full text-xs rounded border border-stone-300 p-1.5" placeholder="np. 65C845" />' +
+              '</div>' +
+            '</div>' +
+            '<label class="inline-flex items-center space-x-1.5 text-xs text-stone-600 cursor-pointer pt-1">' +
+              '<input type="checkbox" class="chkSaveDict rounded border-stone-300 text-emerald-600" checked />' +
+              '<span>Zapamiętaj w słowniku</span>' +
+            '</label>';
+
+          list.appendChild(card);
+        });
+
+        modal.classList.remove('hidden');
+      }
+
+      document.getElementById('btnApplyUnmapped').addEventListener('click', function() {
+        var cards = document.getElementById('unmappedList').children;
+        var mappings = getMappings();
+
+        for (var i = 0; i < cards.length; i++) {
+          var b = cards[i].querySelector('.inputBrand').value.trim();
+          var m = cards[i].querySelector('.inputModel').value.trim();
+          var chk = cards[i].querySelector('.chkSaveDict').checked;
+
+          if (!b || !m) {
+            alert('Uzupełnij markę i model dla wszystkich pozycji!');
+            return;
+          }
+          pendingUnmapped[i].brand = b;
+          pendingUnmapped[i].model = m;
+          if (chk && pendingUnmapped[i].code) {
+            mappings[pendingUnmapped[i].code.toUpperCase()] = { brand: b, model: m };
+          }
+        }
+
+        saveMappings(mappings);
+
+        currentRecords.forEach(function(rec) {
+          if (rec.unmappedKey) {
+            var found = pendingUnmapped.find(function(u) { return u.key === rec.unmappedKey; });
+            if (found) {
+              rec.brand = found.brand;
+              rec.model = found.model;
+            }
+          }
+        });
+
+        document.getElementById('unmappedModal').classList.add('hidden');
+        renderTable();
+      });
+
+      document.getElementById('btnCancelUnmapped').addEventListener('click', function() {
+        document.getElementById('unmappedModal').classList.add('hidden');
+      });
+
+      function renderTable(filterText) {
+        document.getElementById('uploadSection').classList.add('hidden');
+        document.getElementById('resultsSection').classList.remove('hidden');
+
+        var tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        var filter = (filterText || '').toLowerCase();
+        var totalGs = 0;
+
+        currentRecords.forEach(function(r, idx) {
+          totalGs += r.gs;
+          var match = !filter || r.brand.toLowerCase().includes(filter) || r.model.toLowerCase().includes(filter) || (r.code && r.code.toLowerCase().includes(filter));
+          if (!match) return;
+
+          var tr = document.createElement('tr');
+          tr.className = 'hover:bg-stone-50 transition-colors';
+          tr.innerHTML = 
+            '<td class="py-2 px-3 text-stone-400 font-mono text-[11px]">' + (idx + 1) + '</td>' +
+            '<td class="py-2 px-3 font-mono text-stone-700 whitespace-nowrap">' + r.timestamp + '</td>' +
+            '<td class="py-2 px-3 font-medium text-stone-900">' +
+              '<input type="text" class="cellBrand w-full bg-transparent p-1 rounded border border-transparent hover:border-stone-300 text-xs" value="' + escapeHtml(r.brand) + '" />' +
+            '</td>' +
+            '<td class="py-2 px-3 font-mono font-semibold text-stone-900">' +
+              '<input type="text" class="cellModel w-full bg-transparent p-1 rounded border border-transparent hover:border-stone-300 text-xs" value="' + escapeHtml(r.model) + '" />' +
+            '</td>' +
+            '<td class="py-2 px-3 text-right font-mono font-bold text-emerald-800">' +
+              '<input type="number" class="cellGs w-20 text-right bg-transparent p-1 rounded border border-transparent hover:border-stone-300 text-xs font-bold" value="' + r.gs + '" />' +
+            '</td>' +
+            '<td class="py-2 px-3 text-stone-500 truncate max-w-xs">' + escapeHtml(r.code + ' - ' + r.description) + '</td>' +
+            '<td class="py-2 px-3 text-center">' +
+              '<button type="button" class="btnDelete text-stone-400 hover:text-rose-600 font-bold">&times;</button>' +
+            '</td>';
+
+          tr.querySelector('.cellBrand').addEventListener('change', function() { r.brand = this.value; });
+          tr.querySelector('.cellModel').addEventListener('change', function() { r.model = this.value; });
+          tr.querySelector('.cellGs').addEventListener('change', function() { r.gs = parseGsInteger(this.value); renderTable(document.getElementById('tableFilterInput').value); });
+          tr.querySelector('.btnDelete').addEventListener('click', function() { currentRecords.splice(idx, 1); renderTable(document.getElementById('tableFilterInput').value); });
+
+          tbody.appendChild(tr);
+        });
+
+        document.getElementById('statCount').textContent = currentRecords.length;
+        document.getElementById('statTotalGs').textContent = totalGs.toLocaleString();
+        document.getElementById('statAvgGs').textContent = currentRecords.length ? Math.round(totalGs / currentRecords.length) : 0;
+      }
+
+      document.getElementById('tableFilterInput').addEventListener('input', function() {
+        renderTable(this.value);
+      });
+
+      // Zapis do Google Sheets
+      document.getElementById('btnSaveToSheets').addEventListener('click', function() {
+        if (currentRecords.length === 0 || isSaved) return;
+
+        var webhookUrl = localStorage.getItem('GS_WEBHOOK_URL');
+        if (!webhookUrl && typeof google === 'undefined') {
+          document.getElementById('webhookModal').classList.remove('hidden');
+          return;
+        }
+
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Zapisywanie w toku...';
+
+        var rowsToSave = currentRecords.map(function(r) {
+          return [r.timestamp, r.brand, r.model, r.gs];
+        });
+
+        // Wysłanie zapytania POST do Google Apps Script
+        // Używamy mode: 'no-cors' i Content-Type: 'text/plain', aby ominąć blokady CORS przeglądarki!
+        fetch(webhookUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            sheetName: 'Form Responses 1',
+            rows: rowsToSave,
+            records: rowsToSave
+          })
+        }).then(function() {
+          isSaved = true;
+          document.getElementById('successBanner').classList.remove('hidden');
+          document.getElementById('successDetails').textContent = 'Dopisano ' + rowsToSave.length + ' wierszy do Google Sheets.';
+          btn.textContent = '✓ Zapisano pomyślnie';
+          btn.className = 'px-7 py-3 rounded-xl bg-stone-300 text-stone-500 cursor-not-allowed text-sm font-semibold';
+        }).catch(function(err) {
+          btn.disabled = false;
+          btn.textContent = 'Zaakceptuj i zapisz w Google Sheets';
+          alert('Błąd wysyłania: ' + err.message);
+        });
+      });
+
+      // Kopiowanie do schowka
+      document.getElementById('btnCopyTsv').addEventListener('click', function() {
+        if (currentRecords.length === 0) return;
+        var lines = currentRecords.map(function(r) { return [r.timestamp, r.brand, r.model, r.gs].join('\t'); });
+        navigator.clipboard.writeText(lines.join('\n')).then(function() {
+          alert('Skopiowano ' + currentRecords.length + ' wierszy! Możesz wkleić (Ctrl+V) prosto do arkusza.');
+        });
+      });
+
+      // Pobieranie XLSX
+      document.getElementById('btnDownloadXlsx').addEventListener('click', function() {
+        if (currentRecords.length === 0) return;
+        var aoa = [['timestamp', 'marka', 'model', 'gs']];
+        currentRecords.forEach(function(r) { aoa.push([r.timestamp, r.brand, r.model, r.gs]); });
+        var ws = XLSX.utils.aoa_to_sheet(aoa);
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Form Responses 1');
+        XLSX.writeFile(wb, 'gotowe_dane_gs.xlsx');
+      });
+
+      // Pobieranie wzorca
+      document.getElementById('btnSampleDownload').addEventListener('click', function() {
+        var sample = [
+          ['Kod', 'Serial', 'Data', 'Opis (Kolumna D)', 'Salon', 'Kategoria', 'Ilość', 'Cena', 'Prowizja', 'Premia GS (Kolumna J)'],
+          ['TCL-65C845', 'SN101', '2026-09-01', 'Telewizor TCL 65C845 4K MiniLED 144Hz', 'Warszawa', 'TV', 1, 4999, 150, 200],
+          ['SAM-S24-128', 'SN102', '2026-09-02', 'Smartfon Samsung Galaxy S24 128GB Czarny', 'Kraków', 'GSM', 1, 3599, 100, 150]
+        ];
+        var ws = XLSX.utils.aoa_to_sheet(sample);
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Wzorzec');
+        XLSX.writeFile(wb, 'wzorzec_sprzedazy.xlsx');
+      });
+
+      // Ustawienia Webhooka
+      document.getElementById('btnWebhookConfig').addEventListener('click', function() {
+        document.getElementById('webhookUrlInput').value = localStorage.getItem('GS_WEBHOOK_URL') || '';
+        document.getElementById('webhookModal').classList.remove('hidden');
+      });
+      document.getElementById('btnCancelWebhook').addEventListener('click', function() {
+        document.getElementById('webhookModal').classList.add('hidden');
+      });
+      document.getElementById('btnSaveWebhook').addEventListener('click', function() {
+        var url = document.getElementById('webhookUrlInput').value.trim();
+        if (url) localStorage.setItem('GS_WEBHOOK_URL', url);
+        else localStorage.removeItem('GS_WEBHOOK_URL');
+        document.getElementById('webhookModal').classList.add('hidden');
+        checkWebhookUrl();
+      });
+
+      // Słownik
+      function renderDictionaryList() {
+        var mappings = getMappings();
+        var list = document.getElementById('dictionaryList');
+        var keys = Object.keys(mappings).sort();
+        list.innerHTML = '';
+        document.getElementById('dictCountBadge').textContent = 'Pozycji: ' + keys.length;
+
+        keys.forEach(function(k) {
+          var item = mappings[k];
+          var div = document.createElement('div');
+          div.className = 'flex items-center justify-between p-2 rounded border border-stone-200 bg-white';
+          div.innerHTML = 
+            '<div><span class="font-mono font-bold text-stone-900 mr-2">' + escapeHtml(k) + '</span>' +
+            '<span class="text-stone-600">' + escapeHtml(item.brand + ' • ' + item.model) + '</span></div>' +
+            '<button class="text-stone-400 hover:text-rose-600 font-bold px-2">&times;</button>';
+          div.querySelector('button').addEventListener('click', function() {
+            delete mappings[k];
+            saveMappings(mappings);
+            renderDictionaryList();
+          });
+          list.appendChild(div);
+        });
+      }
+
+      document.getElementById('btnOpenDictionary').addEventListener('click', function() {
+        renderDictionaryList();
+        document.getElementById('dictionaryModal').classList.remove('hidden');
+      });
+      document.getElementById('btnCloseDictionary').addEventListener('click', function() {
+        document.getElementById('dictionaryModal').classList.add('hidden');
+      });
+      document.getElementById('btnAddDictEntry').addEventListener('click', function() {
+        var c = document.getElementById('dictInputCode').value.trim().toUpperCase();
+        var b = document.getElementById('dictInputBrand').value.trim();
+        var m = document.getElementById('dictInputModel').value.trim();
+        if (!c || !b || !m) return;
+        var map = getMappings();
+        map[c] = { brand: b, model: m };
+        saveMappings(map);
+        document.getElementById('dictInputCode').value = '';
+        document.getElementById('dictInputBrand').value = '';
+        document.getElementById('dictInputModel').value = '';
+        renderDictionaryList();
+      });
+      document.getElementById('btnResetDictDefault').addEventListener('click', function() {
+        if (confirm('Przywrócić słownik fabryczny?')) {
+          saveMappings(DEFAULT_MAPPINGS);
+          renderDictionaryList();
+        }
+      });
+
+      function resetUpload() {
+        currentRecords = [];
+        pendingUnmapped = [];
+        isSaved = false;
+        fileInput.value = '';
+        document.getElementById('resultsSection').classList.add('hidden');
+        document.getElementById('columnConfigCard').classList.add('hidden');
+        document.getElementById('uploadSection').classList.remove('hidden');
+        var btn = document.getElementById('btnSaveToSheets');
+        btn.disabled = false;
+        btn.textContent = 'Zaakceptuj i zapisz w Google Sheets';
+        btn.className = 'px-7 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-stone-300 text-white font-semibold text-sm transition-all shadow-sm';
+      }
+
+      document.getElementById('btnResetTable').addEventListener('click', resetUpload);
+      document.getElementById('btnUploadNext').addEventListener('click', resetUpload);
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+    })();
+  </script>
+</body>
+</html>
