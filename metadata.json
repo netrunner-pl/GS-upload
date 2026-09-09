@@ -1,0 +1,8 @@
+{
+  "name": "GS form updater",
+  "description": "Aplikacja do przetwarzania plików Excel, mapowania kodów produktów na markę i model SKU oraz zapisu w Google Sheets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
