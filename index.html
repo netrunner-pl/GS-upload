@@ -130,14 +130,14 @@
         <div class="p-4 border-b border-stone-200 bg-stone-50/50 space-y-2">
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <input type="text" id="dictInputCode" placeholder="Kod (np. TCL-65C845)" class="text-xs p-2 rounded-lg border border-stone-300 uppercase font-mono" />
-            <input type="text" id="dictInputBrand" placeholder="Marka (np. TCL)" class="text-xs p-2 rounded-lg border border-stone-300" />
-            <input type="text" id="dictInputModel" placeholder="Model (np. 65C845 MiniLED)" class="text-xs p-2 rounded-lg border border-stone-300" />
+            <input type="text" id="dictInputBrand" placeholder="Marka (np. TCL, Hisense)" class="text-xs p-2 rounded-lg border border-stone-300" />
+            <input type="text" id="dictInputModel" placeholder="Model (np. 65C845)" class="text-xs p-2 rounded-lg border border-stone-300 uppercase font-mono" />
           </div>
           <button id="btnAddDictEntry" type="button" class="text-xs px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">+ Dodaj do bazy</button>
         </div>
         <div id="dictionaryList" class="p-4 overflow-y-auto space-y-2 flex-1 text-xs"></div>
         <div class="px-6 py-3 border-t border-stone-200 bg-stone-50 rounded-b-2xl flex justify-between items-center text-xs">
-          <button id="btnResetDictDefault" type="button" class="text-rose-600 hover:underline">Przywróć domyślne</button>
+          <button id="btnResetDictDefault" type="button" class="text-rose-600 hover:underline font-medium">Wyczyść całą bazę mapowań</button>
           <span id="dictCountBadge" class="text-stone-500 font-mono"></span>
         </div>
       </div>
@@ -145,18 +145,122 @@
 
     <!-- MODAL: USTAWIENIA WEBHOOKA -->
     <div id="webhookModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
-      <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-stone-200 space-y-4 fade-in">
-        <h3 class="text-base font-bold text-stone-900">Konfiguracja Webhooka Apps Script</h3>
-        <p class="text-xs text-stone-600">
-          Wklej poniżej adres URL uzyskany w Apps Script po kliknięciu <em>Wdróż &rarr; Nowe wdrożenie &rarr; Aplikacja internetowa</em> (adres kończy się na <code>/exec</code>):
-        </p>
-        <div>
-          <label class="block text-xs font-semibold text-stone-700 mb-1">Adres URL (/exec):</label>
-          <input type="url" id="webhookUrlInput" placeholder="https://script.google.com/macros/s/.../exec" class="w-full text-xs font-mono p-2.5 rounded-lg border border-stone-300" />
+      <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-stone-200 space-y-5 fade-in max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between border-b border-stone-200 pb-3">
+          <div>
+            <h3 class="text-base font-bold text-stone-900">Skąd wziąć adres Webhooka do Google Sheets?</h3>
+            <p class="text-xs text-stone-500 mt-0.5">Jednorazowa konfiguracja w Twoim arkuszu (zajmuje 2 minuty).</p>
+          </div>
+          <button id="btnCloseWebhookTop" type="button" class="text-stone-400 hover:text-stone-700 text-xl font-bold px-2">&times;</button>
         </div>
-        <div class="flex justify-end space-x-2 pt-2">
-          <button id="btnCancelWebhook" type="button" class="px-4 py-2 rounded-xl border border-stone-300 text-xs font-semibold text-stone-700 hover:bg-stone-50">Anuluj</button>
-          <button id="btnSaveWebhook" type="button" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">Zapisz URL</button>
+
+        <!-- Instrukcja krok po kroku -->
+        <div class="space-y-3 text-xs">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div class="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-1">
+              <span class="w-5 h-5 rounded-full bg-stone-800 text-white font-bold flex items-center justify-center text-[10px]">1</span>
+              <p class="font-semibold text-stone-900">Otwórz Arkusz Google</p>
+              <p class="text-stone-600 text-[11px]">W menu u góry kliknij: <br><strong>Rozszerzenia &rarr; Apps Script</strong>.</p>
+            </div>
+            <div class="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-1">
+              <span class="w-5 h-5 rounded-full bg-stone-800 text-white font-bold flex items-center justify-center text-[10px]">2</span>
+              <p class="font-semibold text-stone-900">Wklej poniższy kod</p>
+              <p class="text-stone-600 text-[11px]">Zastąp treść w pliku <code>Kod.gs</code> i kliknij <strong>Zapisz (Ctrl+S)</strong>.</p>
+            </div>
+            <div class="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-1">
+              <span class="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-[10px]">3</span>
+              <p class="font-semibold text-stone-900">Wdróż jako Web App</p>
+              <p class="text-stone-600 text-[11px]">Niebieski przycisk <strong>Wdróż &rarr; Nowe wdrożenie</strong>, wybierz <em>Aplikacja internetowa</em>.</p>
+            </div>
+          </div>
+
+          <!-- Ważna uwaga -->
+          <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-[11px] space-y-1">
+            <strong class="font-bold">⚠️ BARDZO WAŻNY KROK W APPS SCRIPT:</strong>
+            <p>W oknie wdrożenia ustaw: <strong>Kto ma dostęp (Who has access) &rarr; Każdy (Anyone)</strong>. Bez tego Google zablokuje zapytania ze strony WWW!</p>
+          </div>
+
+          <!-- Blok z kodem do skopiowania -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-semibold text-stone-700">Ulepszony kod do wklejenia w Google Apps Script (Kod.gs):</span>
+              <button id="btnCopyWebhookGasCode" type="button" class="text-[11px] px-2.5 py-1 bg-stone-800 hover:bg-stone-900 text-white font-semibold rounded-lg flex items-center space-x-1">
+                <span>📋 Kopiuj kod</span>
+              </button>
+            </div>
+            <pre class="p-3 bg-stone-900 text-emerald-400 font-mono text-[11px] rounded-xl overflow-x-auto max-h-60 leading-relaxed select-all"><code>// 1. WKLEJ TUTAJ SWOJE ID LUB CAŁY LINK DO ARKUSZA (w cudzysłowie ""):
+var SPREADSHEET_ID = "TUTAJ_WKLEJ_ID_LUB_CALY_LINK";
+
+// Funkcja pomocnicza czyszcząca ID z linku
+function pobierzIdArkusza() {
+  if (!SPREADSHEET_ID || SPREADSHEET_ID === "TUTAJ_WKLEJ_ID_LUB_CALY_LINK") return null;
+  var match = SPREADSHEET_ID.match(/[-\w]{25,}/);
+  return match ? match[0] : SPREADSHEET_ID.trim();
+}
+
+// 2. FUNKCJA DO TESTOWANIA W EDYTORZE (kliknij 'Uruchom' przy tej funkcji):
+function testujPolaczenie() {
+  Logger.log("--- TEST ROZPOCZĘTY ---");
+  var id = pobierzIdArkusza();
+  Logger.log("Wykryte ID: " + id);
+  if (!id) {
+    throw new Error("Wklej najpierw ID lub link w linijce: var SPREADSHEET_ID = '...';");
+  }
+  var ss = SpreadsheetApp.openById(id);
+  Logger.log("✓ Otwarto arkusz: " + ss.getName());
+  var sheet = ss.getSheetByName("Form Responses 1") || ss.getSheetByName("Odpowiedzi z formularza 1") || ss.getSheets()[0];
+  Logger.log("✓ Zakładka: " + sheet.getName());
+  sheet.appendRow([new Date().toLocaleString(), "TEST_MARKA", "TEST_MODEL", 999]);
+  Logger.log("✓ SUKCES! Wiersz testowy pojawił się w Twoim arkuszu!");
+}
+
+// 3. ODBIORNIK DANYCH Z APLIKACJI WWW:
+function doPost(e) {
+  try {
+    var id = pobierzIdArkusza();
+    var ss = id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) {
+      throw new Error("Nie znaleziono arkusza! Upewnij się, że wpisałeś SPREADSHEET_ID.");
+    }
+    var sheet = ss.getSheetByName("Form Responses 1") || ss.getSheetByName("Odpowiedzi z formularza 1") || ss.getSheets()[0];
+    
+    if (!e || !e.postData) {
+      return ContentService.createTextOutput(JSON.stringify({ status: "ok", msg: "Brak danych POST (test GET/manualny)" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    var data = JSON.parse(e.postData.contents);
+    var rows = data.rows || data.records || [];
+    if (rows.length > 0) {
+      for (var i = 0; i &lt; rows.length; i++) {
+        sheet.appendRow(rows[i]);
+      }
+    }
+    return ContentService.createTextOutput(JSON.stringify({ status: "success", count: rows.length, sheet: sheet.getName() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    console.error("BŁĄD W SKRYPCIE:", err.toString());
+    throw err;
+  }
+}</code></pre>
+          </div>
+
+          <!-- Pole do wklejenia URL -->
+          <div class="pt-2 border-t border-stone-200 space-y-1.5">
+            <label class="block text-xs font-bold text-stone-800">
+              Skopiowany adres URL wdrożenia (kończy się na <code>/exec</code>):
+            </label>
+            <input type="url" id="webhookUrlInput" placeholder="https://script.google.com/macros/s/AKfycb.../exec" class="w-full text-xs font-mono p-2.5 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-stone-900" />
+            <p class="text-[11px] text-stone-500">Adres zostanie bezpiecznie zapisany w Twojej przeglądarce i nie musisz go konfigurować ponownie.</p>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center pt-2 border-t border-stone-200">
+          <button id="btnRemoveWebhook" type="button" class="text-xs text-rose-600 hover:underline">Usuń zapisany URL</button>
+          <div class="flex space-x-2">
+            <button id="btnCancelWebhook" type="button" class="px-4 py-2 rounded-xl border border-stone-300 text-xs font-semibold text-stone-700 hover:bg-stone-50">Anuluj</button>
+            <button id="btnSaveWebhook" type="button" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs">Zapisz adres Webhooka</button>
+          </div>
         </div>
       </div>
     </div>
@@ -235,17 +339,11 @@
 
   <script>
     (function() {
-      // Domyślna baza
-      var DEFAULT_MAPPINGS = {
-        'SAM-S24-128': { brand: 'Samsung', model: 'Galaxy S24 128GB' },
-        'SAM-S24U-256': { brand: 'Samsung', model: 'Galaxy S24 Ultra 256GB' },
-        'APL-IP16P-256': { brand: 'Apple', model: 'iPhone 16 Pro 256GB' },
-        'XIA-RN13-8': { brand: 'Xiaomi', model: 'Redmi Note 13 8GB' },
-        'TCL-65C845': { brand: 'TCL', model: '65C845 MiniLED' },
-        'SNY-WH1000-B': { brand: 'Sony', model: 'WH-1000XM5 Black' }
-      };
+      // Baza domyślna jest pusta - użytkownik buduje wyłącznie własne mapowania
+      var DEFAULT_MAPPINGS = {};
+      var MOCK_DEFAULT_CODES = ['SAM-S24-128', 'SAM-S24U-256', 'APL-IP16P-256', 'APL-IP16-128', 'XIA-RN13-8', 'XIA-14T-12', 'TCL-65C845', 'SNY-WH1000-B', 'ASU-ZEPH-G16', 'LEN-LOQ-15', 'LG-OLED-55C4'];
 
-      var knownBrands = ['Samsung', 'Apple', 'Xiaomi', 'TCL', 'Sony', 'Motorola', 'Asus', 'Philips'];
+      var knownBrands = ['TCL', 'Hisense', 'Samsung', 'LG'];
 
       var rawParsedRows = [];
       var currentRecords = [];
@@ -267,9 +365,24 @@
       function getMappings() {
         try {
           var saved = localStorage.getItem('GS_PRODUCT_MAPPINGS');
-          if (saved) return Object.assign({}, DEFAULT_MAPPINGS, JSON.parse(saved));
+          if (saved) {
+            var parsed = JSON.parse(saved);
+            var cleaned = {};
+            var hasChanged = false;
+            Object.keys(parsed).forEach(function(k) {
+              if (MOCK_DEFAULT_CODES.indexOf(k) === -1) {
+                cleaned[k] = parsed[k];
+              } else {
+                hasChanged = true;
+              }
+            });
+            if (hasChanged) {
+              saveMappings(cleaned);
+            }
+            return cleaned;
+          }
         } catch(e) {}
-        return DEFAULT_MAPPINGS;
+        return {};
       }
 
       function saveMappings(newMap) {
@@ -416,6 +529,13 @@
         }
       }
 
+      function formatModel(str) {
+        if (!str) return '';
+        return String(str).toUpperCase().replace(/\s+/g, '');
+      }
+
+      var QUICK_BRANDS = ['TCL', 'Hisense', 'Samsung', 'LG'];
+
       function showUnmappedModal() {
         var modal = document.getElementById('unmappedModal');
         var list = document.getElementById('unmappedList');
@@ -426,29 +546,123 @@
           card.className = 'border border-stone-200 rounded-xl p-4 bg-stone-50 space-y-3';
           var descText = item.description || '(Brak tekstu w kolumnie D)';
 
+          // Automatyczna propozycja marki, jeśli nazwa występuje w kolumnie D
+          var descLower = descText.toLowerCase();
+          var detectedBrand = '';
+          for (var bIdx = 0; bIdx < QUICK_BRANDS.length; bIdx++) {
+            if (descLower.includes(QUICK_BRANDS[bIdx].toLowerCase())) {
+              detectedBrand = QUICK_BRANDS[bIdx];
+              break;
+            }
+          }
+          if (!item.brand && detectedBrand) {
+            item.brand = detectedBrand;
+          }
+
+          var brandButtonsHtml = QUICK_BRANDS.map(function(b) {
+            var isSel = (item.brand === b);
+            return '<button type="button" class="btnQuickBrand py-1.5 px-1 rounded-lg text-xs font-bold transition-all border ' +
+              (isSel ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs' : 'bg-white hover:bg-emerald-50 hover:text-emerald-800 text-stone-700 border-stone-300') + 
+              '" data-brand="' + b + '">' + b + '</button>';
+          }).join(' ');
+
+          var formattedModelVal = formatModel(item.model);
+
           card.innerHTML = 
             '<div class="flex items-center justify-between border-b border-stone-200 pb-2 text-xs">' +
               '<span class="font-mono font-bold text-stone-900">#' + (idx + 1) + ' Kod: ' + (item.code || '<span class="text-rose-600">Brak kodu</span>') + '</span>' +
               '<span class="text-stone-500 font-mono text-[11px]">Wiersze: ' + item.rows.join(', ') + ' | GS: ' + item.sampleGs + '</span>' +
             '</div>' +
             '<div class="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-xs">' +
-              '<span class="font-bold text-amber-900 block mb-0.5">Zawartość Kolumny D:</span>' +
-              '<p class="select-all text-stone-800">' + escapeHtml(descText) + '</p>' +
+              '<div class="flex items-center justify-between mb-0.5">' +
+                '<span class="font-bold text-amber-900">Zawartość Kolumny D (opis):</span>' +
+                '<span class="text-[10px] uppercase font-mono px-1.5 py-0.2 bg-amber-200 text-amber-900 rounded font-semibold">Kolumna D</span>' +
+              '</div>' +
+              '<p class="select-all text-stone-800 font-medium">' + escapeHtml(descText) + '</p>' +
             '</div>' +
-            '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">' +
+            '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' +
               '<div>' +
-                '<label class="block text-[11px] font-semibold text-stone-600 mb-1">Marka:</label>' +
-                '<input type="text" class="inputBrand w-full text-xs rounded border border-stone-300 p-1.5" placeholder="np. TCL, Samsung" />' +
+                '<label class="block text-[11px] font-semibold text-stone-700 mb-1">Marka produktu:</label>' +
+                '<input type="text" class="inputBrand w-full text-xs rounded-lg border border-stone-300 p-2 bg-white text-stone-900 font-medium" placeholder="Wybierz lub wpisz markę" value="' + escapeHtml(item.brand) + '" />' +
+                '<div class="mt-2">' +
+                  '<span class="text-[10px] text-stone-500 font-semibold block mb-1">Szybki wybór marki (4 główne):</span>' +
+                  '<div class="grid grid-cols-4 gap-1.5">' +
+                    brandButtonsHtml +
+                  '</div>' +
+                '</div>' +
               '</div>' +
               '<div>' +
-                '<label class="block text-[11px] font-semibold text-stone-600 mb-1">Model:</label>' +
-                '<input type="text" class="inputModel w-full text-xs rounded border border-stone-300 p-1.5" placeholder="np. 65C845" />' +
+                '<div class="flex items-center justify-between mb-1">' +
+                  '<label class="text-[11px] font-semibold text-stone-700">Model (SKU):</label>' +
+                  '<span class="text-[10px] font-mono font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">' +
+                    'Zapis: <strong class="previewModelTxt">' + (formattedModelVal || '---') + '</strong>' +
+                  '</span>' +
+                '</div>' +
+                '<input type="text" class="inputModel w-full text-xs rounded-lg border border-stone-300 p-2 bg-white text-stone-900 font-mono uppercase font-bold tracking-wider" placeholder="np. 65C845" value="' + escapeHtml(formattedModelVal) + '" />' +
+                '<div class="flex items-center justify-between text-[10px] text-stone-400 mt-1">' +
+                  '<span>Wielkie litery, bez spacji</span>' +
+                  (descText && descText !== '(Brak tekstu w kolumnie D)' ? '<button type="button" class="btnCopyFromDesc text-amber-700 hover:text-amber-900 font-semibold hover:underline">Wstaw z kolumny D</button>' : '') +
+                '</div>' +
               '</div>' +
             '</div>' +
             '<label class="inline-flex items-center space-x-1.5 text-xs text-stone-600 cursor-pointer pt-1">' +
               '<input type="checkbox" class="chkSaveDict rounded border-stone-300 text-emerald-600" checked />' +
-              '<span>Zapamiętaj w słowniku</span>' +
+              '<span>Zapamiętaj to mapowanie w słowniku dla kodu &bdquo;' + escapeHtml(item.code || '') + '&rdquo;</span>' +
             '</label>';
+
+          var inputBrand = card.querySelector('.inputBrand');
+          var inputModel = card.querySelector('.inputModel');
+          var previewModelTxt = card.querySelector('.previewModelTxt');
+
+          function updateModelFormatted() {
+            var formatted = formatModel(inputModel.value);
+            inputModel.value = formatted;
+            item.model = formatted;
+            if (previewModelTxt) {
+              previewModelTxt.textContent = formatted || '---';
+            }
+          }
+
+          card.querySelectorAll('.btnQuickBrand').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+              var selectedBrand = this.getAttribute('data-brand');
+              inputBrand.value = selectedBrand;
+              item.brand = selectedBrand;
+
+              card.querySelectorAll('.btnQuickBrand').forEach(function(b) {
+                if (b.getAttribute('data-brand') === selectedBrand) {
+                  b.className = 'btnQuickBrand py-1.5 px-1 rounded-lg text-xs font-bold transition-all border bg-emerald-600 text-white border-emerald-700 shadow-xs';
+                } else {
+                  b.className = 'btnQuickBrand py-1.5 px-1 rounded-lg text-xs font-bold transition-all border bg-white hover:bg-emerald-50 hover:text-emerald-800 text-stone-700 border-stone-300';
+                }
+              });
+
+              // Jeśli model jest pusty, a w opisie jest nazwa marki, spróbuj wyciąć model
+              if (!inputModel.value && descText && descText !== '(Brak tekstu w kolumnie D)') {
+                var re = new RegExp(selectedBrand + '\\s+([a-zA-Z0-9\\-]+)', 'i');
+                var mMatch = descText.match(re);
+                if (mMatch && mMatch[1]) {
+                  inputModel.value = formatModel(mMatch[1]);
+                  updateModelFormatted();
+                }
+              }
+            });
+          });
+
+          inputModel.addEventListener('input', updateModelFormatted);
+          inputModel.addEventListener('change', updateModelFormatted);
+          inputModel.addEventListener('paste', function() {
+            setTimeout(updateModelFormatted, 10);
+          });
+          inputModel.addEventListener('blur', updateModelFormatted);
+
+          var btnCopyDesc = card.querySelector('.btnCopyFromDesc');
+          if (btnCopyDesc) {
+            btnCopyDesc.addEventListener('click', function() {
+              inputModel.value = formatModel(descText);
+              updateModelFormatted();
+            });
+          }
 
           list.appendChild(card);
         });
@@ -462,7 +676,7 @@
 
         for (var i = 0; i < cards.length; i++) {
           var b = cards[i].querySelector('.inputBrand').value.trim();
-          var m = cards[i].querySelector('.inputModel').value.trim();
+          var m = formatModel(cards[i].querySelector('.inputModel').value);
           var chk = cards[i].querySelector('.chkSaveDict').checked;
 
           if (!b || !m) {
@@ -483,7 +697,7 @@
             var found = pendingUnmapped.find(function(u) { return u.key === rec.unmappedKey; });
             if (found) {
               rec.brand = found.brand;
-              rec.model = found.model;
+              rec.model = formatModel(found.model);
             }
           }
         });
@@ -530,7 +744,15 @@
             '</td>';
 
           tr.querySelector('.cellBrand').addEventListener('change', function() { r.brand = this.value; });
-          tr.querySelector('.cellModel').addEventListener('change', function() { r.model = this.value; });
+          var modelInput = tr.querySelector('.cellModel');
+          modelInput.addEventListener('input', function() {
+            this.value = formatModel(this.value);
+            r.model = this.value;
+          });
+          modelInput.addEventListener('change', function() {
+            this.value = formatModel(this.value);
+            r.model = this.value;
+          });
           tr.querySelector('.cellGs').addEventListener('change', function() { r.gs = parseGsInteger(this.value); renderTable(document.getElementById('tableFilterInput').value); });
           tr.querySelector('.btnDelete').addEventListener('click', function() { currentRecords.splice(idx, 1); renderTable(document.getElementById('tableFilterInput').value); });
 
@@ -629,10 +851,35 @@
       document.getElementById('btnCancelWebhook').addEventListener('click', function() {
         document.getElementById('webhookModal').classList.add('hidden');
       });
+      document.getElementById('btnCloseWebhookTop').addEventListener('click', function() {
+        document.getElementById('webhookModal').classList.add('hidden');
+      });
+      document.getElementById('btnCopyWebhookGasCode').addEventListener('click', function() {
+        var code = '// 1. WKLEJ TUTAJ SWOJE ID LUB CAŁY LINK DO ARKUSZA (w cudzysłowie ""):\nvar SPREADSHEET_ID = "TUTAJ_WKLEJ_ID_LUB_CALY_LINK";\n\n// Funkcja pomocnicza czyszcząca ID z linku\nfunction pobierzIdArkusza() {\n  if (!SPREADSHEET_ID || SPREADSHEET_ID === "TUTAJ_WKLEJ_ID_LUB_CALY_LINK") return null;\n  var match = SPREADSHEET_ID.match(/[-\\w]{25,}/);\n  return match ? match[0] : SPREADSHEET_ID.trim();\n}\n\n// 2. FUNKCJA DO TESTOWANIA W EDYTORZE (kliknij \'Uruchom\' przy tej funkcji):\nfunction testujPolaczenie() {\n  Logger.log("--- TEST ROZPOCZĘTY ---");\n  var id = pobierzIdArkusza();\n  Logger.log("Wykryte ID: " + id);\n  if (!id) {\n    throw new Error("Wklej najpierw ID lub link w linijce: var SPREADSHEET_ID = \'...\';");\n  }\n  var ss = SpreadsheetApp.openById(id);\n  Logger.log("✓ Otwarto arkusz: " + ss.getName());\n  var sheet = ss.getSheetByName("Form Responses 1") || ss.getSheetByName("Odpowiedzi z formularza 1") || ss.getSheets()[0];\n  Logger.log("✓ Zakładka: " + sheet.getName());\n  sheet.appendRow([new Date().toLocaleString(), "TEST_MARKA", "TEST_MODEL", 999]);\n  Logger.log("✓ SUKCES! Wiersz testowy pojawił się w Twoim arkuszu!");\n}\n\n// 3. ODBIORNIK DANYCH Z APLIKACJI WWW:\nfunction doPost(e) {\n  try {\n    var id = pobierzIdArkusza();\n    var ss = id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();\n    if (!ss) {\n      throw new Error("Nie znaleziono arkusza! Upewnij się, że wpisałeś SPREADSHEET_ID.");\n    }\n    var sheet = ss.getSheetByName("Form Responses 1") || ss.getSheetByName("Odpowiedzi z formularza 1") || ss.getSheets()[0];\n    \n    if (!e || !e.postData) {\n      return ContentService.createTextOutput(JSON.stringify({ status: "ok", msg: "Brak danych POST (test GET/manualny)" }))\n        .setMimeType(ContentService.MimeType.JSON);\n    }\n    \n    var data = JSON.parse(e.postData.contents);\n    var rows = data.rows || data.records || [];\n    if (rows.length > 0) {\n      for (var i = 0; i < rows.length; i++) {\n        sheet.appendRow(rows[i]);\n      }\n    }\n    return ContentService.createTextOutput(JSON.stringify({ status: "success", count: rows.length, sheet: sheet.getName() }))\n      .setMimeType(ContentService.MimeType.JSON);\n  } catch (err) {\n    console.error("BŁĄD W SKRYPCIE:", err.toString());\n    throw err;\n  }\n}';
+        navigator.clipboard.writeText(code).then(function() {
+          alert('Skopiowano kod do schowka! Wklej go w Google Apps Script (Kod.gs).');
+        });
+      });
+      document.getElementById('btnRemoveWebhook').addEventListener('click', function() {
+        if (confirm('Czy na pewno usunąć zapisany adres Webhooka?')) {
+          localStorage.removeItem('GS_WEBHOOK_URL');
+          document.getElementById('webhookUrlInput').value = '';
+          document.getElementById('webhookModal').classList.add('hidden');
+          checkWebhookUrl();
+        }
+      });
       document.getElementById('btnSaveWebhook').addEventListener('click', function() {
         var url = document.getElementById('webhookUrlInput').value.trim();
-        if (url) localStorage.setItem('GS_WEBHOOK_URL', url);
-        else localStorage.removeItem('GS_WEBHOOK_URL');
+        if (url) {
+          if (!url.includes('/exec')) {
+            if (!confirm('Uwaga: Poprawny adres Webhooka powinien kończyć się na "/exec" (nie "/dev" ani "/edit"). Czy na pewno chcesz go zapisać?')) {
+              return;
+            }
+          }
+          localStorage.setItem('GS_WEBHOOK_URL', url);
+        } else {
+          localStorage.removeItem('GS_WEBHOOK_URL');
+        }
         document.getElementById('webhookModal').classList.add('hidden');
         checkWebhookUrl();
       });
@@ -644,6 +891,11 @@
         var keys = Object.keys(mappings).sort();
         list.innerHTML = '';
         document.getElementById('dictCountBadge').textContent = 'Pozycji: ' + keys.length;
+
+        if (keys.length === 0) {
+          list.innerHTML = '<div class="text-center py-8 text-stone-400 italic text-xs leading-relaxed">Brak zapisanych mapowań w bazie.<br><span class="text-[11px] text-stone-500 font-medium">Baza zawiera tylko wpisy dodane przez Ciebie. Gdy uzupełnisz brakujące produkty z zaznaczoną opcją „Zapamiętaj w słowniku”, Twoje kody pojawią się tutaj.</span></div>';
+          return;
+        }
 
         keys.forEach(function(k) {
           var item = mappings[k];
@@ -672,7 +924,7 @@
       document.getElementById('btnAddDictEntry').addEventListener('click', function() {
         var c = document.getElementById('dictInputCode').value.trim().toUpperCase();
         var b = document.getElementById('dictInputBrand').value.trim();
-        var m = document.getElementById('dictInputModel').value.trim();
+        var m = formatModel(document.getElementById('dictInputModel').value);
         if (!c || !b || !m) return;
         var map = getMappings();
         map[c] = { brand: b, model: m };
@@ -683,8 +935,8 @@
         renderDictionaryList();
       });
       document.getElementById('btnResetDictDefault').addEventListener('click', function() {
-        if (confirm('Przywrócić słownik fabryczny?')) {
-          saveMappings(DEFAULT_MAPPINGS);
+        if (confirm('Czy na pewno chcesz usunąć wszystkie zapisane mapowania z bazy?')) {
+          saveMappings({});
           renderDictionaryList();
         }
       });

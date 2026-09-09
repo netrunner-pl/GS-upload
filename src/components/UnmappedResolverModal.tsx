@@ -13,13 +13,13 @@ export const UnmappedResolverModal: React.FC<UnmappedResolverModalProps> = ({
   unmappedItems,
   onResolve,
   onCancel,
-  knownBrands = ['Samsung', 'Apple', 'Xiaomi', 'Sony', 'Asus', 'Lenovo', 'LG', 'Motorola', 'Huawei', 'Philips'],
+  knownBrands = ['TCL', 'Hisense', 'Samsung', 'LG'],
 }) => {
   const [items, setItems] = useState<UnmappedItem[]>(() =>
     unmappedItems.map((item) => {
       // Auto-suggest brand if found in Column D description
       let initialBrand = item.brand || '';
-      let initialModel = item.model || '';
+      let initialModel = item.model ? item.model.toUpperCase().replace(/\s+/g, '') : '';
 
       if (!initialBrand && item.description) {
         const descLower = item.description.toLowerCase();
@@ -48,7 +48,11 @@ export const UnmappedResolverModal: React.FC<UnmappedResolverModalProps> = ({
     setValidationError(null);
     setItems((prev) => {
       const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
+      let formattedVal = value;
+      if (field === 'model' && typeof value === 'string') {
+        formattedVal = value.toUpperCase().replace(/\s+/g, '');
+      }
+      next[index] = { ...next[index], [field]: formattedVal };
       return next;
     });
   };
@@ -59,7 +63,7 @@ export const UnmappedResolverModal: React.FC<UnmappedResolverModalProps> = ({
 
   const handleUseDescriptionAsModel = (index: number, desc: string) => {
     if (!desc) return;
-    handleFieldChange(index, 'model', desc);
+    handleFieldChange(index, 'model', desc.toUpperCase().replace(/\s+/g, ''));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -194,36 +198,54 @@ export const UnmappedResolverModal: React.FC<UnmappedResolverModalProps> = ({
                         className="w-full text-sm rounded-lg border border-stone-300 px-3 py-2 bg-white text-stone-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                         required
                       />
-                      {/* Brand quick picks */}
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        {knownBrands.slice(0, 6).map((b) => (
-                          <button
-                            key={b}
-                            type="button"
-                            onClick={() => handleBrandSelect(index, b)}
-                            className="text-[11px] px-1.5 py-0.5 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors"
-                          >
-                            {b}
-                          </button>
-                        ))}
+                      {/* Brand quick picks - 4 marki bezpośrednio pod polem marki */}
+                      <div className="mt-2">
+                        <span className="text-[10px] text-stone-500 font-medium block mb-1">Szybki wybór marki:</span>
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {knownBrands.map((b) => {
+                            const isSelected = item.brand === b;
+                            return (
+                              <button
+                                key={b}
+                                type="button"
+                                onClick={() => handleBrandSelect(index, b)}
+                                className={`text-xs py-1.5 px-1 rounded-lg font-bold text-center transition-colors border ${
+                                  isSelected
+                                    ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                                    : 'bg-white hover:bg-emerald-50 hover:text-emerald-700 text-stone-700 border-stone-200'
+                                }`}
+                              >
+                                {b}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-stone-700 mb-1">
-                        Oznaczenie modelu (symbol SKU) <span className="text-rose-500">*</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-medium text-stone-700">
+                          Oznaczenie modelu (symbol SKU) <span className="text-rose-500">*</span>
+                        </label>
+                        {item.model && (
+                          <span className="text-[10px] font-mono font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
+                            Format: {item.model}
+                          </span>
+                        )}
+                      </div>
                       <input
                         id={`input-unmapped-model-${index}`}
                         type="text"
-                        placeholder="np. Galaxy S24 128GB, WH-1000XM5"
+                        placeholder="np. 65C845"
                         value={item.model}
                         onChange={(e) => handleFieldChange(index, 'model', e.target.value)}
-                        className="w-full text-sm rounded-lg border border-stone-300 px-3 py-2 bg-white text-stone-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        onBlur={(e) => handleFieldChange(index, 'model', e.target.value)}
+                        className="w-full text-sm rounded-lg border border-stone-300 px-3 py-2 bg-white text-stone-900 font-mono uppercase font-bold tracking-wide focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                         required
                       />
                       <p className="text-[11px] text-stone-400 mt-1">
-                        Dokładna nazwa modelu wprowadzana do tabeli wynikowej
+                        Automatycznie zamienia na wielkie litery i usuwa spacje
                       </p>
                     </div>
                   </div>

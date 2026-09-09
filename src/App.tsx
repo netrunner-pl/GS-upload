@@ -22,19 +22,29 @@ export default function App() {
 
   // Mappings State
   const [mappings, setMappings] = useState<Record<string, ProductMapping>>(() => {
+    const mockCodes = ['SAM-S24-128', 'SAM-S24U-256', 'APL-IP16-128', 'APL-IP16P-256', 'XIA-RN13-8', 'XIA-14T-12', 'SNY-WH1000-B', 'ASU-ZEPH-G16', 'LEN-LOQ-15', 'LG-OLED-55C4', 'TCL-65C845'];
     try {
       const saved = localStorage.getItem(STORAGE_KEY_MAPPINGS);
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        const filtered: Record<string, ProductMapping> = {};
+        let changed = false;
+        Object.keys(parsed).forEach((k) => {
+          if (!mockCodes.includes(k)) {
+            filtered[k] = parsed[k];
+          } else {
+            changed = true;
+          }
+        });
+        if (changed) {
+          localStorage.setItem(STORAGE_KEY_MAPPINGS, JSON.stringify(filtered));
+        }
+        return filtered;
       }
     } catch (e) {
       console.error('Failed to load mappings from localStorage', e);
     }
-    const initialMap: Record<string, ProductMapping> = {};
-    INITIAL_MAPPINGS.forEach((m) => {
-      initialMap[m.code.toUpperCase()] = m;
-    });
-    return initialMap;
+    return {};
   });
 
   // Google Sheets Config State

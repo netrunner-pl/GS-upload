@@ -37,7 +37,7 @@ export const MappingManager: React.FC<MappingManagerProps> = ({
     setError(null);
     const code = newCode.trim();
     const brand = newBrand.trim();
-    const model = newModel.trim();
+    const model = newModel.trim().toUpperCase().replace(/\s+/g, '');
 
     if (!code || !brand || !model) {
       setError('Wszystkie pola są wymagane.');
@@ -82,7 +82,7 @@ export const MappingManager: React.FC<MappingManagerProps> = ({
       [normalizedCode]: {
         ...existing,
         brand: editBrand.trim() || existing.brand,
-        model: editModel.trim() || existing.model,
+        model: editModel.trim().toUpperCase().replace(/\s+/g, '') || existing.model,
         updatedAt: new Date().toISOString(),
       },
     });
@@ -96,13 +96,9 @@ export const MappingManager: React.FC<MappingManagerProps> = ({
     onUpdateMappings(next);
   };
 
-  const handleResetDefaults = () => {
-    if (window.confirm('Czy na pewno chcesz przywrócić domyślne mapowania? Spowoduje to zastąpienie bieżącej bazy.')) {
-      const resetMap: Record<string, ProductMapping> = {};
-      INITIAL_MAPPINGS.forEach((m) => {
-        resetMap[m.code.toUpperCase()] = m;
-      });
-      onUpdateMappings(resetMap);
+  const handleClearAll = () => {
+    if (window.confirm('Czy na pewno chcesz usunąć wszystkie zapisane mapowania z bazy?')) {
+      onUpdateMappings({});
     }
   };
 
@@ -215,13 +211,13 @@ export const MappingManager: React.FC<MappingManagerProps> = ({
           />
 
           <button
-            id="btn-reset-mappings"
-            onClick={handleResetDefaults}
-            className="inline-flex items-center space-x-1 px-3 py-2 rounded-xl border border-stone-200 text-stone-500 hover:text-stone-800 hover:bg-stone-100 text-xs sm:text-sm font-medium transition-colors"
-            title="Przywróć zestaw demonstracyjny"
+            id="btn-clear-mappings"
+            onClick={handleClearAll}
+            className="inline-flex items-center space-x-1 px-3 py-2 rounded-xl border border-stone-200 text-rose-600 hover:text-rose-800 hover:bg-rose-50 text-xs sm:text-sm font-medium transition-colors"
+            title="Wyczyść wszystkie zapisane mapowania"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Wzorce</span>
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Wyczyść bazę</span>
           </button>
         </div>
       </div>
