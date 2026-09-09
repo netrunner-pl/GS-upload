@@ -1,14 +1,67 @@
 import React, { useState } from 'react';
-import { Code2, Copy, Check, FileCode, Terminal, ShieldCheck, Download, LayoutTemplate, Sparkles, ExternalLink } from 'lucide-react';
+import { Code2, Copy, Check, FileCode, Terminal, ShieldCheck, Download, LayoutTemplate, Sparkles, ExternalLink, Globe, GitBranch } from 'lucide-react';
 import { getGoogleAppsScriptTemplate, getGoogleAppsScriptHtmlTemplate, getPythonScriptTemplate } from '../utils/sheetsSync';
 
 export const CodeExportModal: React.FC = () => {
-  const [activeCodeTab, setActiveCodeTab] = useState<'gas-html' | 'gas' | 'python' | 'arch'>('gas-html');
+  const [activeCodeTab, setActiveCodeTab] = useState<'gas-html' | 'gas' | 'github-pages' | 'python' | 'arch'>('github-pages');
   const [copied, setCopied] = useState<string | null>(null);
 
   const gasCode = getGoogleAppsScriptTemplate();
   const gasHtmlCode = getGoogleAppsScriptHtmlTemplate();
   const pythonCode = getPythonScriptTemplate();
+
+  const ghActionsWorkflow = `name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: \${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Vite application
+        run: npm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+`;
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -55,6 +108,19 @@ export const CodeExportModal: React.FC = () => {
       <div className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-xs">
         <div className="flex flex-wrap border-b border-stone-200 bg-stone-50 px-4 pt-3 gap-1">
           <button
+            onClick={() => setActiveCodeTab('github-pages')}
+            className={`px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-semibold flex items-center space-x-2 transition-colors border-t border-x ${
+              activeCodeTab === 'github-pages'
+                ? 'bg-white border-stone-200 text-emerald-800 border-b-transparent -mb-px shadow-xs'
+                : 'border-transparent text-stone-600 hover:text-stone-900 hover:bg-stone-100/60'
+            }`}
+          >
+            <Globe className="w-4 h-4 text-emerald-600" />
+            <span>GitHub Pages (Wdrożenie)</span>
+            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded">Gotowe</span>
+          </button>
+
+          <button
             onClick={() => setActiveCodeTab('gas-html')}
             className={`px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-semibold flex items-center space-x-2 transition-colors border-t border-x ${
               activeCodeTab === 'gas-html'
@@ -64,7 +130,6 @@ export const CodeExportModal: React.FC = () => {
           >
             <LayoutTemplate className="w-4 h-4 text-emerald-600" />
             <span>index.html (Interfejs HTML/JS dla Apps Script)</span>
-            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded">Nowy</span>
           </button>
 
           <button
@@ -106,6 +171,174 @@ export const CodeExportModal: React.FC = () => {
 
         {/* Content Pane */}
         <div className="p-5">
+          {/* TAB: GitHub Pages */}
+          {activeCodeTab === 'github-pages' && (
+            <div className="space-y-5">
+              {/* Introduction & Readiness card */}
+              <div className="bg-emerald-50/80 border border-emerald-300/80 rounded-2xl p-4 sm:p-5 text-stone-800 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center space-x-2">
+                    <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                      <Globe className="w-4 h-4" />
+                    </span>
+                    <div>
+                      <h3 className="font-bold text-emerald-950 text-base">
+                        Aplikacja jest w 100% gotowa do działania na GitHub Pages!
+                      </h3>
+                      <p className="text-xs text-emerald-900 mt-0.5">
+                        Wprowadziliśmy wszystkie wymagane ustawienia dla statycznego hostingu GitHub Pages.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-bold bg-emerald-200 text-emerald-900 px-3 py-1 rounded-full border border-emerald-300 shrink-0">
+                    Konfiguracja aktywna
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 text-xs">
+                  <div className="bg-white p-3.5 rounded-xl border border-emerald-200 space-y-1">
+                    <strong className="text-stone-900 flex items-center space-x-1.5">
+                      <span className="text-emerald-600 font-bold">✓</span>
+                      <span>Relatywne ścieżki (base: './')</span>
+                    </strong>
+                    <p className="text-stone-600 text-[11px] leading-relaxed">
+                      W <code>vite.config.ts</code> ustawiono <code>base: './'</code>, dzięki czemu pliki JS, CSS i grafiki ładują się bezbłędnie pod adresem <code>https://username.github.io/repo-name/</code>.
+                    </p>
+                  </div>
+
+                  <div className="bg-white p-3.5 rounded-xl border border-emerald-200 space-y-1">
+                    <strong className="text-stone-900 flex items-center space-x-1.5">
+                      <span className="text-emerald-600 font-bold">✓</span>
+                      <span>GitHub Actions Workflow</span>
+                    </strong>
+                    <p className="text-stone-600 text-[11px] leading-relaxed">
+                      Utworzono plik <code>.github/workflows/deploy.yml</code>. Każdy <code>git push</code> do gałęzi <code>main</code> automatycznie buduje i publikuje aplikację.
+                    </p>
+                  </div>
+
+                  <div className="bg-white p-3.5 rounded-xl border border-emerald-200 space-y-1">
+                    <strong className="text-stone-900 flex items-center space-x-1.5">
+                      <span className="text-emerald-600 font-bold">✓</span>
+                      <span>Plik 404.html &amp; Standalone</span>
+                    </strong>
+                    <p className="text-stone-600 text-[11px] leading-relaxed">
+                      Dodano <code>public/404.html</code> do obsługi przekierowań oraz samodzielny <code>gs-form-updater.html</code> dostępny bezpośrednio w sieci.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step-by-step instructions on GitHub */}
+              <div className="bg-stone-50 border border-stone-200 rounded-2xl p-5 space-y-3 text-xs">
+                <div className="flex items-center space-x-2 text-stone-900 font-bold text-sm">
+                  <GitBranch className="w-4 h-4 text-emerald-600" />
+                  <span>Jak włączyć GitHub Pages w swoim repozytorium GitHub (2 minuty):</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                  <div className="bg-white p-4 rounded-xl border border-stone-200 space-y-1.5">
+                    <div className="flex items-center space-x-2">
+                      <span className="w-5 h-5 rounded-full bg-stone-900 text-white font-bold flex items-center justify-center text-[11px]">1</span>
+                      <strong className="text-stone-900 text-xs">Wejdź w Ustawienia repozytorium</strong>
+                    </div>
+                    <p className="text-stone-600 text-[11px] leading-relaxed">
+                      W serwisie GitHub przejdź do swojego repozytorium i kliknij zakładkę <strong>Settings</strong> (Ustawienia) u góry.
+                    </p>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-xl border border-stone-200 space-y-1.5">
+                    <div className="flex items-center space-x-2">
+                      <span className="w-5 h-5 rounded-full bg-stone-900 text-white font-bold flex items-center justify-center text-[11px]">2</span>
+                      <strong className="text-stone-900 text-xs">Wybierz zakładkę Pages</strong>
+                    </div>
+                    <p className="text-stone-600 text-[11px] leading-relaxed">
+                      W lewym menu bocznym kliknij <strong>Pages</strong>.
+                    </p>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-xl border border-stone-200 space-y-1.5">
+                    <div className="flex items-center space-x-2">
+                      <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-[11px]">3</span>
+                      <strong className="text-stone-900 text-xs">Ustaw źródło: GitHub Actions</strong>
+                    </div>
+                    <p className="text-stone-600 text-[11px] leading-relaxed">
+                      W sekcji <strong>Build and deployment &gt; Source</strong> wybierz z listy: <strong>GitHub Actions</strong>.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 mt-2 text-stone-700">
+                  <p className="font-semibold text-amber-900">Co się stanie po włączeniu?</p>
+                  <p className="text-[11px] text-amber-800 mt-0.5">
+                    GitHub Actions natychmiast uruchomi proces budowania i w ciągu ok. 60 sekund Twoja aplikacja będzie publicznie dostępna pod adresem: <code>https://&lt;twoj-login&gt;.github.io/&lt;nazwa-repo&gt;/</code>.
+                  </p>
+                </div>
+              </div>
+
+              {/* Alternative CLI deploy option */}
+              <div className="bg-white border border-stone-200 rounded-2xl p-4 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold text-stone-900">
+                    Opcja alternatywna: Ręczne wdrożenie przez terminal (npm run deploy)
+                  </h4>
+                  <span className="text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded border border-stone-200 font-mono">
+                    pakiet: gh-pages
+                  </span>
+                </div>
+                <p className="text-stone-600 text-[11px]">
+                  Jeśli wolisz wdrażać bezpośrednio z wiersza poleceń ze swojego komputera:
+                </p>
+                <div className="p-3 bg-stone-900 text-stone-100 rounded-xl font-mono text-xs flex items-center justify-between">
+                  <code>npm run deploy</code>
+                  <button
+                    onClick={() => handleCopy('npm run deploy', 'cli-deploy')}
+                    className="text-stone-300 hover:text-white text-[11px] font-sans px-2 py-1 bg-stone-800 rounded border border-stone-700"
+                  >
+                    {copied === 'cli-deploy' ? 'Skopiowano!' : 'Kopiuj'}
+                  </button>
+                </div>
+                <p className="text-[11px] text-stone-500">
+                  Polecenie automatycznie uruchomi <code>npm run build</code> i wyśle zawartość folderu <code>dist/</code> do gałęzi <code>gh-pages</code>. Wtedy w <em>Settings &gt; Pages</em> wybierz <em>Deploy from a branch &gt; gh-pages</em>.
+                </p>
+              </div>
+
+              {/* Workflow file viewer */}
+              <div className="space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-stone-700">
+                      Zawartość pliku workflow: .github/workflows/deploy.yml
+                    </h4>
+                    <p className="text-[11px] text-stone-500">
+                      Plik został już zapisany w Twoim projekcie. Poniżej podgląd:
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleCopy(ghActionsWorkflow, 'workflow')}
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-emerald-600 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs"
+                  >
+                    {copied === 'workflow' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Skopiowano workflow!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Kopiuj kod workflow</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <div className="relative">
+                  <pre className="p-4 rounded-xl bg-stone-900 text-stone-100 font-mono text-xs overflow-x-auto max-h-[360px] leading-relaxed select-all">
+                    <code>{ghActionsWorkflow}</code>
+                  </pre>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* TAB 1: index.html for Google Apps Script */}
           {activeCodeTab === 'gas-html' && (
             <div className="space-y-4">
@@ -180,7 +413,7 @@ export const CodeExportModal: React.FC = () => {
 
                   <a
                     id="btn-open-standalone-html"
-                    href="/gs-form-updater.html"
+                    href="./gs-form-updater.html"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-xs font-semibold text-emerald-800 shadow-xs transition-colors"
