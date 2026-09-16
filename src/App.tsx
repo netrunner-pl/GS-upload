@@ -13,7 +13,7 @@ import { MappingManager } from './components/MappingManager';
 import { GoogleSheetsSettings } from './components/GoogleSheetsSettings';
 import { CodeExportModal } from './components/CodeExportModal';
 import { ProductMapping, ProcessedRecord, UnmappedItem, GoogleSheetsConfig } from './types';
-import { INITIAL_MAPPINGS, STORAGE_KEY_MAPPINGS, STORAGE_KEY_CONFIG } from './data/defaultMappings';
+import { INITIAL_MAPPINGS, STORAGE_KEY_MAPPINGS, STORAGE_KEY_CONFIG, GLOBAL_DEFAULT_WEBHOOK_URL } from './data/defaultMappings';
 import { extractExcelData } from './utils/excelParser';
 
 export default function App() {
@@ -49,6 +49,16 @@ export default function App() {
 
   // Google Sheets Config State
   const [sheetsConfig, setSheetsConfig] = useState<GoogleSheetsConfig>(() => {
+    // Sprawdź parametr w URL np. ?webhook=https://script.google.com/.../exec
+    let queryWebhook = '';
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlParam = params.get('webhook') || params.get('url');
+      if (urlParam && urlParam.includes('/exec')) {
+        queryWebhook = urlParam.trim();
+      }
+    } catch (e) {}
+
     try {
       const saved = localStorage.getItem(STORAGE_KEY_CONFIG);
       if (saved) {
@@ -56,17 +66,30 @@ export default function App() {
         if (!parsed.sheetName || parsed.sheetName === 'Dane GS' || parsed.sheetName === 'Arkusz1') {
           parsed.sheetName = 'Form Responses 1';
         }
+        if (queryWebhook) {
+          parsed.webAppUrl = queryWebhook;
+          localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(parsed));
+        } else if (!parsed.webAppUrl && GLOBAL_DEFAULT_WEBHOOK_URL) {
+          parsed.webAppUrl = GLOBAL_DEFAULT_WEBHOOK_URL;
+        }
         return parsed;
       }
     } catch (e) {
       console.error('Failed to load sheets config from localStorage', e);
     }
-    return {
-      webAppUrl: '',
+
+    const initialConfig: GoogleSheetsConfig = {
+      webAppUrl: queryWebhook || GLOBAL_DEFAULT_WEBHOOK_URL || '',
       spreadsheetId: '',
       sheetName: 'Form Responses 1',
       autoSaveMappings: true,
     };
+    if (queryWebhook) {
+      try {
+        localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(initialConfig));
+      } catch (e) {}
+    }
+    return initialConfig;
   });
 
   // Processing State

@@ -251,7 +251,23 @@ function doPost(e) {
               Skopiowany adres URL wdrożenia (kończy się na <code>/exec</code>):
             </label>
             <input type="url" id="webhookUrlInput" placeholder="https://script.google.com/macros/s/AKfycb.../exec" class="w-full text-xs font-mono p-2.5 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white text-stone-900" />
-            <p class="text-[11px] text-stone-500">Adres zostanie bezpiecznie zapisany w Twojej przeglądarce i nie musisz go konfigurować ponownie.</p>
+            <p class="text-[11px] text-stone-500">Adres zostanie bezpiecznie zapisany w Twojej przeglądarce.</p>
+          </div>
+
+          <!-- Sekcja udostępniania dla zespołu -->
+          <div id="shareWebhookBox" class="p-3 bg-emerald-50 border border-emerald-300 rounded-xl space-y-1.5 text-xs">
+            <span class="font-bold text-emerald-950 flex items-center gap-1.5">
+              <span>🔗</span> Gotowy link dla innych użytkowników (bez potrzeby konfiguracji):
+            </span>
+            <p class="text-stone-600 text-[11px] leading-relaxed">
+              Wyślij ten link współpracownikom. Gdy go otworzą, Webhook skonfiguruje się u nich <strong>automatycznie</strong> i żaden komunikat ostrzegawczy się nie pojawi!
+            </p>
+            <div class="flex items-center gap-2 pt-0.5">
+              <input type="text" id="shareWebhookLinkInput" readonly placeholder="Wklej i zapisz Webhook powyżej, aby wygenerować link..." class="flex-1 bg-white border border-emerald-300 rounded-lg p-2 text-xs font-mono text-stone-800 select-all" />
+              <button id="btnCopyShareLink" type="button" class="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-semibold text-xs shrink-0 transition-colors shadow-xs">
+                Kopiuj link
+              </button>
+            </div>
           </div>
         </div>
 
@@ -350,14 +366,51 @@ function doPost(e) {
       var pendingUnmapped = [];
       var isSaved = false;
 
+      // ============================================================================
+      // STAŁY DOMYŚLNY ADRES WEBHOOKA DLA WSZYSTKICH UŻYTKOWNIKÓW:
+      // ============================================================================
+      var GLOBAL_DEFAULT_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbybDRglKBsdRXykR5swck7yd7jGfP6NZogkfBrWpu0Ud4YBIUebu1WMMh8w7r5oGPTs/exec';
+
+      // Automatyczna konfiguracja z parametru URL ?webhook=... lub ?url=...
+      (function autoCheckUrlParams() {
+        try {
+          var params = new URLSearchParams(window.location.search);
+          var wh = params.get('webhook') || params.get('url');
+          if (wh && wh.includes('/exec')) {
+            localStorage.setItem('GS_WEBHOOK_URL', wh.trim());
+            try {
+              window.history.replaceState({}, document.title, window.location.pathname);
+            } catch(e) {}
+          }
+        } catch(e) {}
+      })();
+
+      function getWebhookUrl() {
+        return localStorage.getItem('GS_WEBHOOK_URL') || GLOBAL_DEFAULT_WEBHOOK_URL || '';
+      }
+
       // Sprawdzenie obecności Webhooka
       function checkWebhookUrl() {
-        var url = localStorage.getItem('GS_WEBHOOK_URL');
+        var url = getWebhookUrl();
         var alertBox = document.getElementById('webhookAlert');
         if (!url && typeof google === 'undefined') {
           alertBox.classList.remove('hidden');
         } else {
           alertBox.classList.add('hidden');
+        }
+        updateShareLink();
+      }
+
+      function updateShareLink() {
+        var url = getWebhookUrl();
+        var input = document.getElementById('shareWebhookLinkInput');
+        if (input) {
+          if (url) {
+            var fullShareUrl = window.location.origin + window.location.pathname + '?webhook=' + encodeURIComponent(url);
+            input.value = fullShareUrl;
+          } else {
+            input.value = '';
+          }
         }
       }
       checkWebhookUrl();
@@ -772,7 +825,7 @@ function doPost(e) {
       document.getElementById('btnSaveToSheets').addEventListener('click', function() {
         if (currentRecords.length === 0 || isSaved) return;
 
-        var webhookUrl = localStorage.getItem('GS_WEBHOOK_URL');
+        var webhookUrl = getWebhookUrl();
         if (!webhookUrl && typeof google === 'undefined') {
           document.getElementById('webhookModal').classList.remove('hidden');
           return;
@@ -845,7 +898,8 @@ function doPost(e) {
 
       // Ustawienia Webhooka
       document.getElementById('btnWebhookConfig').addEventListener('click', function() {
-        document.getElementById('webhookUrlInput').value = localStorage.getItem('GS_WEBHOOK_URL') || '';
+        document.getElementById('webhookUrlInput').value = getWebhookUrl();
+        updateShareLink();
         document.getElementById('webhookModal').classList.remove('hidden');
       });
       document.getElementById('btnCancelWebhook').addEventListener('click', function() {
@@ -855,9 +909,19 @@ function doPost(e) {
         document.getElementById('webhookModal').classList.add('hidden');
       });
       document.getElementById('btnCopyWebhookGasCode').addEventListener('click', function() {
-        var code = '// 1. WKLEJ TUTAJ SWOJE ID LUB CAŁY LINK DO ARKUSZA (w cudzysłowie ""):\nvar SPREADSHEET_ID = "TUTAJ_WKLEJ_ID_LUB_CALY_LINK";\n\n// Funkcja pomocnicza czyszcząca ID z linku\nfunction pobierzIdArkusza() {\n  if (!SPREADSHEET_ID || SPREADSHEET_ID === "TUTAJ_WKLEJ_ID_LUB_CALY_LINK") return null;\n  var match = SPREADSHEET_ID.match(/[-\\w]{25,}/);\n  return match ? match[0] : SPREADSHEET_ID.trim();\n}\n\n// 2. FUNKCJA DO TESTOWANIA W EDYTORZE (kliknij \'Uruchom\' przy tej funkcji):\nfunction testujPolaczenie() {\n  Logger.log("--- TEST ROZPOCZĘTY ---");\n  var id = pobierzIdArkusza();\n  Logger.log("Wykryte ID: " + id);\n  if (!id) {\n    throw new Error("Wklej najpierw ID lub link w linijce: var SPREADSHEET_ID = \'...\';");\n  }\n  var ss = SpreadsheetApp.openById(id);\n  Logger.log("✓ Otwarto arkusz: " + ss.getName());\n  var sheet = ss.getSheetByName("Form Responses 1") || ss.getSheetByName("Odpowiedzi z formularza 1") || ss.getSheets()[0];\n  Logger.log("✓ Zakładka: " + sheet.getName());\n  sheet.appendRow([new Date().toLocaleString(), "TEST_MARKA", "TEST_MODEL", 999]);\n  Logger.log("✓ SUKCES! Wiersz testowy pojawił się w Twoim arkuszu!");\n}\n\n// 3. ODBIORNIK DANYCH Z APLIKACJI WWW:\nfunction doPost(e) {\n  try {\n    var id = pobierzIdArkusza();\n    var ss = id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();\n    if (!ss) {\n      throw new Error("Nie znaleziono arkusza! Upewnij się, że wpisałeś SPREADSHEET_ID.");\n    }\n    var sheet = ss.getSheetByName("Form Responses 1") || ss.getSheetByName("Odpowiedzi z formularza 1") || ss.getSheets()[0];\n    \n    if (!e || !e.postData) {\n      return ContentService.createTextOutput(JSON.stringify({ status: "ok", msg: "Brak danych POST (test GET/manualny)" }))\n        .setMimeType(ContentService.MimeType.JSON);\n    }\n    \n    var data = JSON.parse(e.postData.contents);\n    var rows = data.rows || data.records || [];\n    if (rows.length > 0) {\n      for (var i = 0; i < rows.length; i++) {\n        sheet.appendRow(rows[i]);\n      }\n    }\n    return ContentService.createTextOutput(JSON.stringify({ status: "success", count: rows.length, sheet: sheet.getName() }))\n      .setMimeType(ContentService.MimeType.JSON);\n  } catch (err) {\n    console.error("BŁĄD W SKRYPCIE:", err.toString());\n    throw err;\n  }\n}';
+        var code = '// Kod odbiornika do Twojego Arkusza Google:\nfunction doPost(e) {\n  try {\n    var ss = SpreadsheetApp.getActiveSpreadsheet();\n    var sheet = ss.getSheetByName("Form Responses 1") || ss.getSheetByName("Odpowiedzi z formularza 1") || ss.getSheets()[0];\n    \n    if (!e || !e.postData) {\n      return ContentService.createTextOutput(JSON.stringify({ status: "ok", msg: "Gotowy do odbioru danych" }))\n        .setMimeType(ContentService.MimeType.JSON);\n    }\n    \n    var data = JSON.parse(e.postData.contents);\n    var rows = data.rows || data.records || [];\n    if (rows.length > 0) {\n      for (var i = 0; i < rows.length; i++) {\n        sheet.appendRow(rows[i]);\n      }\n    }\n    return ContentService.createTextOutput(JSON.stringify({ status: "success", count: rows.length, sheet: sheet.getName() }))\n      .setMimeType(ContentService.MimeType.JSON);\n  } catch (err) {\n    console.error("BŁĄD W SKRYPCIE:", err.toString());\n    return ContentService.createTextOutput(JSON.stringify({ status: "error", error: err.toString() }))\n      .setMimeType(ContentService.MimeType.JSON);\n  }\n}';
         navigator.clipboard.writeText(code).then(function() {
-          alert('Skopiowano kod do schowka! Wklej go w Google Apps Script (Kod.gs).');
+          alert('Skopiowano kod do schowka! Wklej go w Google Apps Script (w pliku Kod.gs), zapisz i kliknij Wdróż.');
+        });
+      });
+      document.getElementById('btnCopyShareLink').addEventListener('click', function() {
+        var input = document.getElementById('shareWebhookLinkInput');
+        if (!input.value) {
+          alert('Najpierw wklej i zapisz adres Webhooka powyżej!');
+          return;
+        }
+        navigator.clipboard.writeText(input.value).then(function() {
+          alert('Skopiowano link ze skonfigurowanym Webhookiem!\n\nWyślij go współpracownikom – gdy go klikną, Webhook ustawi się u nich automatycznie i nie pojawi się żaden komunikat ostrzegawczy.');
         });
       });
       document.getElementById('btnRemoveWebhook').addEventListener('click', function() {
@@ -882,6 +946,11 @@ function doPost(e) {
         }
         document.getElementById('webhookModal').classList.add('hidden');
         checkWebhookUrl();
+
+        // Jeśli są dane do zapisania, od razu kontynuuj wysyłkę do Arkusza
+        if (url && currentRecords.length > 0 && !isSaved) {
+          document.getElementById('btnSaveToSheets').click();
+        }
       });
 
       // Słownik
